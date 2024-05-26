@@ -1,8 +1,8 @@
 const router = require("express").Router();
 const User = require("../models/User");
 const bcrypt = require("bcrypt");
-// register
 
+// Register route
 router.post("/register", async (req, res) => {
   try {
     const salt = await bcrypt.genSalt(10);
@@ -14,24 +14,51 @@ router.post("/register", async (req, res) => {
       password: hashedPassword,
     });
 
-      const user = await newUser.save();
-
-      res.status(200).json(user._id);
+    const user = await newUser.save();
+    res.status(200).json(user._id);
   } catch (err) {
     res.status(500).json(err);
   }
 });
 
-router.post("/login", async(req, res) => {
-    try {
-        
-        const user = await User.findOne({username: req.body.username})
+// Login route
+router.post("/login", async (req, res) => {
+  try {
+    const { usernameOrEmail, password } = req.body;
 
-        !user && res.status(400).json("")
+    // Log the input for debugging
+    console.log("Login attempt with:", usernameOrEmail, password);
 
-    } catch (err) {
-        res.status(500).json(err)
+    // Find the user by either username or email
+    const user = await User.findOne({
+      $or: [
+        { username: usernameOrEmail },
+        { email: usernameOrEmail }
+      ]
+    });
+
+    // Log the found user for debugging
+    console.log("User found:", user);
+
+    if (!user) {
+      return res.status(400).json("Wrong username or password");
     }
-})
+
+    const validPassword = await bcrypt.compare(password, user.password);
+    
+    // Log password validation result
+    console.log("Password valid:", validPassword);
+
+    if (!validPassword) {
+      return res.status(400).json("Wrong username or password");
+    }
+
+    res.status(200).json({ _id: user._id, username: user.username });
+  } catch (err) {
+    // Log the error for debugging
+    console.error(err);
+    res.status(500).json(err);
+  }
+});
 
 module.exports = router;
